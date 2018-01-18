@@ -1,0 +1,17 @@
+CC=i686-w64-mingw32-gcc
+TARGET=find-nonascii
+EXE_EXT=.exe
+INSTALL_DIR=$(USERPROFILE)/bin
+#CFLAGS=-std=c11 -O2 -Wall
+CFLAGS=-std=c11 -g -Wall
+
+$(TARGET): $(TARGET).o
+
+$(TARGET).o: $(TARGET).c
+
+install: $(TARGET)$(EXE_EXT)
+	install $(TARGET)$(EXE_EXT) $(INSTALL_DIR)
+
+clean:
+	$(RM) $(TARGET)$(EXE_EXT) $(TARGET).o
+

@@ -1,0 +1,24 @@
+CC=gcc
+TARGET=find-nonascii
+#CFLAGS=-std=c11 -O2 -Wall
+CFLAGS=-std=c11 -g -Wall
+
+# Work around .c vs .C case insensitivity with Windows and mingw
+CXX=$(CC)
+CPPFLAGS=$(CFLAGS)
+
+RM:=del
+INSTALL_DIR=$(USERPROFILE)\\bin
+INSTALL=copy
+
+$(TARGET).exe: $(TARGET).o
+	$(CC) $(LDFLAGS) $(TARGET).o -o $(TARGET).exe
+
+$(TARGET).o: $(TARGET).c
+
+install: $(TARGET).exe
+	$(INSTALL) $(TARGET).exe $(INSTALL_DIR)
+
+clean:
+	$(RM) $(TARGET).exe $(TARGET).o
+
