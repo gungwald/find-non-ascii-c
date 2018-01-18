@@ -1,5 +1,5 @@
 CC=gcc
-TARGET=find-nonascii
+TARGET=find-non-ascii
 #CFLAGS=-std=c11 -O2 -Wall
 CFLAGS=-std=c11 -g -Wall
 INSTALL_DIR=/usr/local/bin

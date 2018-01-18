@@ -1,5 +1,5 @@
 CC=i686-w64-mingw32-gcc
-TARGET=find-nonascii
+TARGET=find-non-ascii
 EXE_EXT=.exe
 INSTALL_DIR=$(USERPROFILE)/bin
 #CFLAGS=-std=c11 -O2 -Wall

@@ -1,9 +1,11 @@
 CC=gcc
-TARGET=find-nonascii
+TARGET=find-non-ascii
 #CFLAGS=-std=c11 -O2 -Wall
 CFLAGS=-std=c11 -g -Wall
 
 # Work around .c vs .C case insensitivity with Windows and mingw
+# The .c file gets assigned to g++ because it matches with the makefile
+# rule for .C files.
 CXX=$(CC)
 CPPFLAGS=$(CFLAGS)
 
