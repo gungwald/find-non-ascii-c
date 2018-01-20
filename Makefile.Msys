@@ -1,0 +1,26 @@
+# For vim: set makeprg=mingw32-make\ -f\ Makefile.Msys
+
+CC=gcc
+TARGET=find-non-ascii
+
+# It is not necessary to define UNICODE since we're not using any Win32 API
+# functions. But, it is important then to be conscious of the code page being
+# used which by default is not UTF-8 on Windoze. Type "help chcp" in a
+# Command Prompt to learn how to set the code page. The UTF-8 code page is
+# 65001.
+
+#CFLAGS=-std=c11 -O2 -Wall
+CFLAGS=-std=c11 -g -Wall
+INSTALL_DIR=$(USERPROFILE)/bin
+
+$(TARGET).exe: $(TARGET).o
+	$(LINK.o) $^ $(LOADLIBES) $(LDLIBS) -o $@
+
+$(TARGET).o: $(TARGET).c
+
+install: $(TARGET).exe
+	$(INSTALL) -D $(TARGET).exe $(INSTALL_DIR)
+
+clean:
+	$(RM) $(TARGET).exe $(TARGET).o
+

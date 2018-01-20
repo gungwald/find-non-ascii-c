@@ -8,8 +8,10 @@
 #include <libgen.h>	/* basename */
 #include <inttypes.h>   /* PRIx8, PRIu32 */
 #include <limits.h>	/* UINT_MAX */
+#include <ctype.h>	/* tolower */
 
 #define HEX_STR_SIZE 256
+#define INPUT_LINE_SIZE 512
 
 // Determine what printf conversion sequence to use for wint_t.
 #if WINT_MAX == INT_MAX
@@ -26,11 +28,21 @@
 
 bool findNonAscii(FILE *f, char *name);
 char *wideCharToMultiByteHex(wchar_t c);
+void checkLocale();
+bool endsWith(const char *s, const char *ending);
 
 int main(int argc, char *argv[])
 {
+
+#ifdef DEBUG
+    printf("wint_t is %d bytes\n", (int) sizeof(wint_t));
+    printf("WINT_MAX is %u\n", WINT_MAX);
+    printf("UINT_MAX is %u\n", UINT_MAX);
+#endif
+
     // Initialize locale settings from LANG environment variable.
     setlocale(LC_ALL, "");
+    checkLocale();
 
     int exitCode = EXIT_SUCCESS;
 
@@ -46,14 +58,12 @@ int main(int argc, char *argv[])
 		exitCode = EXIT_FAILURE;
 	    }
             if (fclose(in) == EOF) {
-                fprintf(stderr, "%s: Failed to close file: %s\n", fileName, strerror(errno));
+                fprintf(stderr, "%s: Failed to close file: %s\n", fileName, 
+			strerror(errno));
 		exitCode = EXIT_FAILURE;
             }
         }
     }
-    printf("wint_t is %d bytes\n", (int) sizeof(wint_t));
-    printf("WINT_MAX is %u\n", WINT_MAX);
-    printf("UINT_MAX is %u\n", UINT_MAX);
     return exitCode;
 }
 
@@ -66,8 +76,9 @@ bool findNonAscii(FILE *f, char *name)
     while ((c = fgetwc(f)) != WEOF) {
 	columnNum++;
         if (c > 127) {
-            printf("%s:%" PRIu32 ",%" PRIu32 ": char='%lc' code=%" PRINT_WINT_T " bytes=[%s]\n",
-		    name, lineNum, columnNum, c, c, wideCharToMultiByteHex(c));
+            printf("%s:%" PRIu32 ",%" PRIu32 ": char='%lc' code=%" PRINT_WINT_T 
+    		" bytes=[%s]\n",
+	    	name, lineNum, columnNum, c, c, wideCharToMultiByteHex(c));
         }
         else if (c == L'\n') {
             lineNum++;
@@ -75,7 +86,8 @@ bool findNonAscii(FILE *f, char *name)
         }
     }
     if (ferror(f)) {
-        fprintf(stderr, "%s: Read failed at line %" PRIu32 ": %s\n", name, lineNum, strerror(errno));
+        fprintf(stderr, "%s: Read failed at line %" PRIu32 ": %s\n", name, lineNum, 
+		strerror(errno));
 	success = false;
     }
     return success;
@@ -98,3 +110,56 @@ char *wideCharToMultiByteHex(wchar_t c)
     }
     return hexString;
 }
+
+void checkLocale()
+{
+    char *locale = setlocale(LC_ALL, NULL);
+    if (! endsWith(locale, ".utf8")) {
+	char *currentEncoding = strdup(strrchr(locale, '.') + 1);
+    	char answerLine[INPUT_LINE_SIZE];
+	printf("To properly decode any non-ASCII characters stored in the file, you must "
+		"match the character encoding used to read the "
+		"file with the one that was used to save the file."
+		"This session is currently configured to read the file using "
+		"the character encoding '%s'. Press Enter to "
+		"continue with that encoding or type the name of the "
+		"encoding you'd "
+		"like to use instead. The most common character encoding is 'utf8'.\n",
+		currentEncoding);
+    	do {
+		printf("Enter character encoding: ");
+		fflush(stdout);
+		if (fgets(answerLine, INPUT_LINE_SIZE, stdin) == NULL) {
+			if (ferror(stdin)) {
+				perror("stdin");
+			}
+		}
+		else {
+			// fgets will not append '\0' if the input is too long
+			answerLine[INPUT_LINE_SIZE - 1] = '\0';
+			if (strlen(answerLine) > 0) {
+    				char encoding[INPUT_LINE_SIZE];
+				snprintf(encoding, INPUT_LINE_SIZE, ".%s", answerLine);
+				locale = setlocale(LC_ALL, encoding);
+				if (locale == NULL) {
+					fprintf(stderr, "Invalid encoding: %s\n", encoding);
+					fflush(stderr); // Shouldn't have to do this.
+				}
+			}
+		}
+	} while (locale == NULL);
+	free(currentEncoding);
+    }
+}
+
+bool endsWith(const char *s, const char *ending)
+{
+	const char *sPtr = s + strlen(s) - strlen(ending);
+	if (sPtr > s && strcmp(sPtr, ending) == 0) {
+		return true;
+	}
+	else {
+		return false;
+	}
+}
+
