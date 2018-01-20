@@ -17,7 +17,7 @@ endif
 
 $(TARGET): $(OBJS)
 
-$(TARGET).o: $(TARGET).c
+$(TARGET).o: $(TARGET).c java-string-compat.h
 
 java-string-compat.o: java-string-compat.c java-string-compat.h
 

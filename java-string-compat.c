@@ -1,3 +1,4 @@
+#include <stdio.h>	/* perror */
 #include <string.h>
 #include <stdarg.h>	/* va_arg, etc */
 #include <malloc.h>

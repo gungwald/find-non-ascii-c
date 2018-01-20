@@ -1,17 +1,29 @@
 CC=i686-w64-mingw32-gcc
 TARGET=find-non-ascii
-EXE_EXT=.exe
+OBJS=$(TARGET).o java-string-compat.o
 INSTALL_DIR=$(USERPROFILE)/bin
-#CFLAGS=-std=c11 -O2 -Wall
-CFLAGS=-std=c11 -g -Wall
 
-$(TARGET): $(TARGET).o
+# The definition of _XOPEN_SOURCE is needed to include strdup which is not
+# part of the ISO C11 standard, which is being specified. Defining
+# C_POSIX_SOURCE >= 200804 is supposed to work also but it does not.
+CFLAGS=-std=c11 -Wall -D_XOPEN_SOURCE=500
 
-$(TARGET).o: $(TARGET).c
+ifdef RELEASE
+	CFLAGS+=-O2
+else	
+	CFLAGS+=-g -DDEBUG
+endif
 
-install: $(TARGET)$(EXE_EXT)
-	install $(TARGET)$(EXE_EXT) $(INSTALL_DIR)
+$(TARGET).exe: $(OBJS)
+	$(LINK.o) $^ $(LOADLIBES) $(LDLIBS) -o $@
+
+$(TARGET).o: $(TARGET).c java-string-compat.h
+
+java-string-compat.o: java-string-compat.c java-string-compat.h
+
+install: $(TARGET).exe
+	install $(TARGET).exe $(INSTALL_DIR)
 
 clean:
-	$(RM) $(TARGET)$(EXE_EXT) $(TARGET).o
+	$(RM) $(TARGET).exe $(OBJS)
 

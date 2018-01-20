@@ -44,27 +44,39 @@ int main(int argc, char *argv[])
 
     // Initialize locale settings from LANG environment variable.
     setlocale(LC_ALL, "");
-    checkLocale();
 
     int exitCode = EXIT_SUCCESS;
 
-    for (int i = 1; i < argc && exitCode == EXIT_SUCCESS; i++) {
-        char *fileName = argv[i];
-        FILE *in = fopen(fileName, "r");
-        if (in == NULL) {
-            perror(fileName);
-	    exitCode = EXIT_FAILURE;
-        }
-        else {
-	    if (! findNonAscii(in, fileName)) {
-		exitCode = EXIT_FAILURE;
+    if (argc > 1) {
+	    if (argc == 2 && strcmp(argv[1], "-") == 0) {
+		  if (! findNonAscii(stdin, "stdin")) {
+			  exitCode = EXIT_FAILURE;
+		  }
 	    }
-            if (fclose(in) == EOF) {
-                fprintf(stderr, "%s: Failed to close file: %s\n", fileName, 
-			strerror(errno));
-		exitCode = EXIT_FAILURE;
-            }
-        }
+	    else {
+		    for (int i = 1; i < argc && exitCode == EXIT_SUCCESS; i++) {
+			char *fileName = argv[i];
+			FILE *in = fopen(fileName, "r");
+			if (in == NULL) {
+			    perror(fileName);
+			    exitCode = EXIT_FAILURE;
+			}
+			else {
+			    if (! findNonAscii(in, fileName)) {
+				exitCode = EXIT_FAILURE;
+			    }
+			    if (fclose(in) == EOF) {
+				fprintf(stderr, "%s: Failed to close file: %s\n", fileName, 
+					strerror(errno));
+				exitCode = EXIT_FAILURE;
+			    }
+			}
+		    }
+	    }
+	    checkLocale();
+    }
+    else {
+	    fprintf(stderr, "%s: Exiting because no input files were provided\n", basename(argv[0]));
     }
     return exitCode;
 }
@@ -117,17 +129,28 @@ void checkLocale()
 {
     // Get the current locale
     char *locale = setlocale(LC_ALL, NULL);
-    char *encName = findCharEncNameInLocale(locale);
+    const char *encName = findCharEncNameInLocale(locale);
+
+#ifdef DEBUG
+    printf("Locale: %s\n", locale);
+    printf("Encdng: %s\n", encName);
+#endif
 
     if (! isUTF8CharEncName(encName)) {
-	printf("WARNING: "
-		"To properly decode any non-ASCII characters stored in the file,\n"
-		"you must match the character encoding used to read the file\n"
-	        "with the one that was used to save the file.\n"
-		"This session is currently configured to read the file using\n"
-		"the character encoding: %s. If this does not match the encoding\n"
-		"used to save the file, non-ASCII characters can still be detected\n"
-		"but they won't be identified correctly.\n", encName);
+	fprintf(stderr, "\nWARNING: Possible character encoding mismatch\n\n"
+		"To properly decode any non-ASCII characters stored in the input\n"
+		"files, you must match the character encoding of the current\n"
+	        "session with the one that was previously used to save the file.\n"
+		"The current session is configured to use the character encoding:\n"
+		"	%s\n\n"
+		"If this does not match the encoding that was previously used to\n"
+		"save the file, non-ASCII characters will still be detected. But\n"
+	        "they won't be identified correctly.\n\n"
+		"If your input files have been saved in the UTF-8 encoding, which\n"
+		"is most likely the case, use the following commands to set the\n"
+	        "character encoding of your session to UTF-8:\n\n"
+		"	Windows:   CHCP 65001\n"
+		"	Linux/Mac: export LANG=en_US.UTF-8\n\n", encName);
 	fflush(stdout);
     }
 }
@@ -153,8 +176,8 @@ bool isUTF8CharEncName(const char *charEncodingName)
 	bool foundMatch = false;
 	if (charEncodingName != NULL) {
 		char *lowerName = toLowerCase(charEncodingName);
-		char *utf8Names[] = {"utf8", "utf-8"};
-		for (int i = 0; i < sizeof(utf8Names) && !foundMatch; i++) {
+		char *utf8Names[] = {"utf8", "utf-8", NULL};
+		for (int i = 0; utf8Names[i] != NULL && !foundMatch; i++) {
 			if (strcmp(lowerName, utf8Names[i]) == 0) {
 				foundMatch = true;
 			}
