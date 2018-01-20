@@ -1,8 +1,12 @@
+// This is required to get strdup as it is not part of ISO C.
+#define POSIX_C_SOURCE 200809L
+#define _XOPEN_SOURCE 500
+
 #include <stdio.h>	/* printf, fprintf, snprintf, FILE, fopen, fgetwc */
 #include <stdlib.h> 	/* EXIT_SUCCESS */
 #include <stdbool.h>	/* bool, true, false */
 #include <wchar.h>	/* wchar_t */
-#include <string.h>	/* strncat */
+#include <string.h>	/* strncat, strdup */
 #include <errno.h>	/* errno */
 #include <locale.h>	/* setlocale */
 #include <libgen.h>	/* basename */
