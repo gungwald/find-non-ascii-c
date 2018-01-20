@@ -1,7 +1,3 @@
-// This is required to get strdup as it is not part of ISO C.
-#define POSIX_C_SOURCE 200809L
-#define _XOPEN_SOURCE 500
-
 #include <stdio.h>	/* printf, fprintf, snprintf, FILE, fopen, fgetwc */
 #include <stdlib.h> 	/* EXIT_SUCCESS */
 #include <stdbool.h>	/* bool, true, false */
@@ -12,7 +8,8 @@
 #include <libgen.h>	/* basename */
 #include <inttypes.h>   /* PRIx8, PRIu32 */
 #include <limits.h>	/* UINT_MAX */
-#include <ctype.h>	/* tolower */
+
+#include "java-string-compat.h"
 
 #define HEX_STR_SIZE 256
 #define INPUT_LINE_SIZE 512
@@ -33,7 +30,8 @@
 bool findNonAscii(FILE *f, char *name);
 char *wideCharToMultiByteHex(wchar_t c);
 void checkLocale();
-bool endsWith(const char *s, const char *ending);
+const char *findCharEncNameInLocale(const char *locale);
+bool isUTF8CharEncName(const char *charEncodingName);
 
 int main(int argc, char *argv[])
 {
@@ -117,53 +115,52 @@ char *wideCharToMultiByteHex(wchar_t c)
 
 void checkLocale()
 {
+    // Get the current locale
     char *locale = setlocale(LC_ALL, NULL);
-    if (! endsWith(locale, ".utf8")) {
-	char *currentEncoding = strdup(strrchr(locale, '.') + 1);
-    	char answerLine[INPUT_LINE_SIZE];
-	printf("To properly decode any non-ASCII characters stored in the file, you must "
-		"match the character encoding used to read the "
-		"file with the one that was used to save the file."
-		"This session is currently configured to read the file using "
-		"the character encoding '%s'. Press Enter to "
-		"continue with that encoding or type the name of the "
-		"encoding you'd "
-		"like to use instead. The most common character encoding is 'utf8'.\n",
-		currentEncoding);
-    	do {
-		printf("Enter character encoding: ");
-		fflush(stdout);
-		if (fgets(answerLine, INPUT_LINE_SIZE, stdin) == NULL) {
-			if (ferror(stdin)) {
-				perror("stdin");
-			}
-		}
-		else {
-			// fgets will not append '\0' if the input is too long
-			answerLine[INPUT_LINE_SIZE - 1] = '\0';
-			if (strlen(answerLine) > 0) {
-    				char encoding[INPUT_LINE_SIZE];
-				snprintf(encoding, INPUT_LINE_SIZE, ".%s", answerLine);
-				locale = setlocale(LC_ALL, encoding);
-				if (locale == NULL) {
-					fprintf(stderr, "Invalid encoding: %s\n", encoding);
-					fflush(stderr); // Shouldn't have to do this.
-				}
-			}
-		}
-	} while (locale == NULL);
-	free(currentEncoding);
+    char *encName = findCharEncNameInLocale(locale);
+
+    if (! isUTF8CharEncName(encName)) {
+	printf("WARNING: "
+		"To properly decode any non-ASCII characters stored in the file,\n"
+		"you must match the character encoding used to read the file\n"
+	        "with the one that was used to save the file.\n"
+		"This session is currently configured to read the file using\n"
+		"the character encoding: %s. If this does not match the encoding\n"
+		"used to save the file, non-ASCII characters can still be detected\n"
+		"but they won't be identified correctly.\n", encName);
+	fflush(stdout);
     }
 }
 
-bool endsWith(const char *s, const char *ending)
+/**
+ * Returns a pointer into the <code>locale</code> variable.
+ */
+const char *findCharEncNameInLocale(const char *locale)
 {
-	const char *sPtr = s + strlen(s) - strlen(ending);
-	if (sPtr > s && strcmp(sPtr, ending) == 0) {
-		return true;
+	const char *charEncName = NULL;
+	const char *dotPtr = strrchr(locale, '.');
+	if (dotPtr != NULL) {
+		charEncName = dotPtr + 1;
+		if (charEncName[0] == '\0') {
+			charEncName = NULL;
+		}
 	}
-	else {
-		return false;
+	return charEncName;
+}
+
+bool isUTF8CharEncName(const char *charEncodingName)
+{
+	bool foundMatch = false;
+	if (charEncodingName != NULL) {
+		char *lowerName = toLowerCase(charEncodingName);
+		char *utf8Names[] = {"utf8", "utf-8"};
+		for (int i = 0; i < sizeof(utf8Names) && !foundMatch; i++) {
+			if (strcmp(lowerName, utf8Names[i]) == 0) {
+				foundMatch = true;
+			}
+		}
+		free(lowerName);
 	}
+	return foundMatch;
 }
 
