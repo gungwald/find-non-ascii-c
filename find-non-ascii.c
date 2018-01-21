@@ -5,6 +5,7 @@
 #include <string.h>	/* strncat, strdup */
 #include <errno.h>	/* errno */
 #include <locale.h>	/* setlocale */
+#include <langinfo.h>	/* nl_langinfo */
 #include <libgen.h>	/* basename */
 #include <inttypes.h>   /* PRIx8, PRIu32 */
 #include <limits.h>	/* UINT_MAX */
@@ -50,6 +51,10 @@ int main(int argc, char *argv[])
 
     // Initialize locale settings from LANG environment variable.
     setlocale(LC_ALL, "");
+    char *codeset = nl_langinfo(CODESET);
+    if (strcmp(codeset, "UTF-8") != 0) {
+	    fprintf(stderr, "WARNING: Character encoding is not set to UTF-8: %s\n", codeset);
+    }
 
     int exitCode = EXIT_SUCCESS;
 
@@ -79,7 +84,6 @@ int main(int argc, char *argv[])
 			}
 		    }
 	    }
-	    checkLocale();
     }
     else {
 	    fprintf(stderr, "%s: Exiting because no input files were provided\n", basename(argv[0]));
