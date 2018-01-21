@@ -5,7 +5,13 @@
 #include <string.h>	/* strncat, strdup */
 #include <errno.h>	/* errno */
 #include <locale.h>	/* setlocale */
+#ifdef _WIN32
+#include <windows.h>	/* SetConsoleOutputCP, CP_UTF8 */
+#include <io.h>		/* _setmode */
+#include <fcntl.h>	/* _O_U8TEXT */
+#else
 #include <langinfo.h>	/* nl_langinfo */
+#endif
 #include <libgen.h>	/* basename */
 #include <inttypes.h>   /* PRIx8, PRIu32 */
 #include <limits.h>	/* UINT_MAX */
@@ -16,6 +22,7 @@
 #define INPUT_LINE_SIZE 512
 
 // Determine what printf conversion sequence to use for wint_t.
+// This type is "wide int", not "Win NT".
 #if WINT_MAX == INT_MAX
 #define PRINT_WINT_T "d"
 #elif WINT_MAX == LONG_MAX
@@ -28,7 +35,9 @@
 #define PRINT_WINT_T "hu"
 #endif
 
-#ifdef WINNT
+// The _WIN32 macro is set for both 32-bit and 64-bit Windows targets.
+// It is the accepted way to detect Windows.
+#ifdef _WIN32
 #define FOPEN_READ_MODE "rt, ccs=UTF-8"
 #else
 #define FOPEN_READ_MODE "r"
@@ -43,18 +52,35 @@ bool isUTF8CharEncName(const char *charEncodingName);
 int main(int argc, char *argv[])
 {
 
+#ifdef _WIN32
+    // Turn on translation of wide characters to UTF-8 for stdout. This
+    // applies to wide functions like wprintf.
+    // This has to be done separately for each file stream on Windows,
+    // either with this function or with the extended mode parameter
+    // in fopen.
+    _setmode(_fileno(stdout), _O_U8TEXT); 
+    // This may not be necessary. Need to validate.
+    SetConsoleOutputCP(CP_UTF8);
+#endif
+
 #ifdef DEBUG
     printf("wint_t is %d bytes\n", (int) sizeof(wint_t));
     printf("WINT_MAX is %u\n", WINT_MAX);
     printf("UINT_MAX is %u\n", UINT_MAX);
+    printf("FOPEN_READ_MODE is %s\n", FOPEN_READ_MODE);
 #endif
 
     // Initialize locale settings from LANG environment variable.
     setlocale(LC_ALL, "");
+
+// The _WIN32 macro is set for both 32-bit and 64-bit Windows targets.
+// It is the accepted way to detect Windows.
+#ifndef _WIN32
     char *codeset = nl_langinfo(CODESET);
     if (strcmp(codeset, "UTF-8") != 0) {
 	    fprintf(stderr, "WARNING: Character encoding is not set to UTF-8: %s\n", codeset);
     }
+#endif
 
     int exitCode = EXIT_SUCCESS;
 
@@ -100,8 +126,12 @@ bool findNonAscii(FILE *f, char *name)
     while ((c = fgetwc(f)) != WEOF) {
 	columnNum++;
         if (c > 127) {
-            printf("%s:%" PRIu32 ",%" PRIu32 ": char='%lc' code=%" PRINT_WINT_T 
-    		" bytes=[%s]\n",
+		// Windows requires wprintf rather than printf to get the
+		// wchar_t to UTF-8 automatic translation to work.
+		// Linux works with printf as long as the conversion char
+		// sequence is %lc.
+            	wprintf(L"%hs:%" PRIu32 ",%" PRIu32 ": char='%lc' code=%" PRINT_WINT_T 
+    		" bytes=[%hs]\n",
 	    	name, lineNum, columnNum, c, c, wideCharToMultiByteHex(c));
         }
         else if (c == L'\n') {
