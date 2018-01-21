@@ -141,7 +141,7 @@ void checkLocale()
 		"To properly decode any non-ASCII characters stored in the input\n"
 		"files, you must match the character encoding of the current\n"
 	        "session with the one that was previously used to save the file.\n"
-		"The current session is configured to use the character encoding:\n"
+		"The current session is configured to use the character encoding:\n\n"
 		"	%s\n\n"
 		"If this does not match the encoding that was previously used to\n"
 		"save the file, non-ASCII characters will still be detected. But\n"
