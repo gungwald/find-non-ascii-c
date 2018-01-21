@@ -27,6 +27,12 @@
 #define PRINT_WINT_T "hu"
 #endif
 
+#ifdef WINNT
+#define FOPEN_READ_MODE "rt, ccs=UTF-8"
+#else
+#define FOPEN_READ_MODE "r"
+#endif
+
 bool findNonAscii(FILE *f, char *name);
 char *wideCharToMultiByteHex(wchar_t c);
 void checkLocale();
@@ -56,7 +62,7 @@ int main(int argc, char *argv[])
 	    else {
 		    for (int i = 1; i < argc && exitCode == EXIT_SUCCESS; i++) {
 			char *fileName = argv[i];
-			FILE *in = fopen(fileName, "r");
+			FILE *in = fopen(fileName, FOPEN_READ_MODE);
 			if (in == NULL) {
 			    perror(fileName);
 			    exitCode = EXIT_FAILURE;

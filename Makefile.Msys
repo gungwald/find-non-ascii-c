@@ -2,25 +2,31 @@
 
 CC=gcc
 TARGET=find-non-ascii
-
-# It is not necessary to define UNICODE since we're not using any Win32 API
-# functions. But, it is important then to be conscious of the code page being
-# used which by default is not UTF-8 on Windoze. Type "help chcp" in a
-# Command Prompt to learn how to set the code page. The UTF-8 code page is
-# 65001.
-
-#CFLAGS=-std=c11 -O2 -Wall
-CFLAGS=-std=c11 -g -Wall
+OBJS=$(TARGET).o java-string-compat.o
 INSTALL_DIR=$(USERPROFILE)/bin
+INSTALL=install
 
-$(TARGET).exe: $(TARGET).o
+# The definition of _XOPEN_SOURCE is needed to include strdup which is not
+# part of the ISO C11 standard, which is being specified. Defining
+# C_POSIX_SOURCE >= 200804 is supposed to work also but it does not.
+CFLAGS=-std=c11 -Wall -D_XOPEN_SOURCE=500
+
+ifdef RELEASE
+	CFLAGS+=-O2
+else	
+	CFLAGS+=-g
+endif
+
+$(TARGET).exe: $(OBJS)
 	$(LINK.o) $^ $(LOADLIBES) $(LDLIBS) -o $@
 
-$(TARGET).o: $(TARGET).c
+$(TARGET).o: $(TARGET).c java-string-compat.h
+
+java-string-compat.o: java-string-compat.c java-string-compat.h
 
 install: $(TARGET).exe
 	$(INSTALL) -D $(TARGET).exe $(INSTALL_DIR)
 
 clean:
-	$(RM) $(TARGET).exe $(TARGET).o
+	$(RM) $(TARGET).exe $(OBJS)
 
