@@ -52,15 +52,36 @@ bool isUTF8CharEncName(const char *charEncodingName);
 int main(int argc, char *argv[])
 {
 
-#ifdef _WIN32
+
+// The _WIN32 macro is set for both 32-bit and 64-bit Windows targets.
+// It is the accepted way to detect Windows.
+#if defined(_WIN32) || defined(_WIN64)
     // Turn on translation of wide characters to UTF-8 for stdout. This
     // applies to wide functions like wprintf.
     // This has to be done separately for each file stream on Windows,
     // either with this function or with the extended mode parameter
     // in fopen.
-    _setmode(_fileno(stdout), _O_U8TEXT); 
+//    _setmode(_fileno(stdout), _O_U8TEXT); 
     // This may not be necessary. Need to validate.
-    SetConsoleOutputCP(CP_UTF8);
+    if (GetConsoleOutputCP() != CP_UTF8) {
+    	fprintf(stderr, "Console code page is %d, which is not UTF-8. Resetting to UTF-8 (%d)\n", GetConsoleOutputCP(), CP_UTF8);
+    	SetConsoleOutputCP(CP_UTF8);
+    }
+    // The locale has to be set to UTF-8 for wctomb to generate UTF-8 chars on both Windows and Linux.
+    // Setting the code page does not set the locale.
+    // Windows considers it an error to try to set the locale to UTF-8, so we can't do that. Catch-22.
+    // Windows will not accept a UTF-8 parameter with these functions:
+    // setlocale
+    // _create_locale
+    // _wctomb_l
+    // So the only option left is to use the Win32 API: WideCharToMultiByte.
+#else
+    // Initialize locale settings from LANG environment variable.
+    setlocale(LC_ALL, "");
+    char *codeset = nl_langinfo(CODESET);
+    if (strcmp(codeset, "UTF-8") != 0) {
+	    fprintf(stderr, "WARNING: Character encoding is not set to UTF-8: %s\n", codeset);
+    }
 #endif
 
 #ifdef DEBUG
@@ -68,18 +89,7 @@ int main(int argc, char *argv[])
     printf("WINT_MAX is %u\n", WINT_MAX);
     printf("UINT_MAX is %u\n", UINT_MAX);
     printf("FOPEN_READ_MODE is %s\n", FOPEN_READ_MODE);
-#endif
-
-    // Initialize locale settings from LANG environment variable.
-    setlocale(LC_ALL, "");
-
-// The _WIN32 macro is set for both 32-bit and 64-bit Windows targets.
-// It is the accepted way to detect Windows.
-#ifndef _WIN32
-    char *codeset = nl_langinfo(CODESET);
-    if (strcmp(codeset, "UTF-8") != 0) {
-	    fprintf(stderr, "WARNING: Character encoding is not set to UTF-8: %s\n", codeset);
-    }
+    fflush(stdout);
 #endif
 
     int exitCode = EXIT_SUCCESS;
@@ -147,7 +157,7 @@ bool findNonAscii(FILE *f, char *name)
     return success;
 }
 
-char *wideCharToMultiByteHex(wchar_t c)
+char *bytesToHexString(char *c)
 {
     static char hexString[HEX_STR_SIZE];
     hexString[0] = '\0';
@@ -163,6 +173,17 @@ char *wideCharToMultiByteHex(wchar_t c)
         }
     }
     return hexString;
+}
+
+char *wideCharToMultiByte(wchar_t c)
+{
+	static char multiByteChar[MB_CUR_MAX + 1];
+#ifdef _WIN32
+	WideCharToMultiByte();
+#else
+	int byteCount = wctomb(multiByteChar, c);
+	multiByteChar[byteCount] = '\0';
+	return multiByteChar;
 }
 
 void checkLocale()
@@ -226,4 +247,3 @@ bool isUTF8CharEncName(const char *charEncodingName)
 	}
 	return foundMatch;
 }
-
