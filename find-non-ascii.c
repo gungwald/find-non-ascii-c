@@ -44,48 +44,22 @@
 #endif
 
 bool findNonAscii(FILE *f, char *name);
-char *wideCharToMultiByteHex(wchar_t c);
+char *bytesToHexString(char *bytes);
+char *wideCharToMultiByte(wchar_t c);
 void checkLocale();
 const char *findCharEncNameInLocale(const char *locale);
 bool isUTF8CharEncName(const char *charEncodingName);
 
 int main(int argc, char *argv[])
 {
-
-
-// The _WIN32 macro is set for both 32-bit and 64-bit Windows targets.
-// It is the accepted way to detect Windows.
-#if defined(_WIN32) || defined(_WIN64)
-    // Turn on translation of wide characters to UTF-8 for stdout. This
-    // applies to wide functions like wprintf.
-    // This has to be done separately for each file stream on Windows,
-    // either with this function or with the extended mode parameter
-    // in fopen.
-//    _setmode(_fileno(stdout), _O_U8TEXT); 
-    // This may not be necessary. Need to validate.
-    if (GetConsoleOutputCP() != CP_UTF8) {
-    	fprintf(stderr, "Console code page is %d, which is not UTF-8. Resetting to UTF-8 (%d)\n", GetConsoleOutputCP(), CP_UTF8);
-    	SetConsoleOutputCP(CP_UTF8);
-    }
-    // The locale has to be set to UTF-8 for wctomb to generate UTF-8 chars on both Windows and Linux.
-    // Setting the code page does not set the locale.
-    // Windows considers it an error to try to set the locale to UTF-8, so we can't do that. Catch-22.
-    // Windows will not accept a UTF-8 parameter with these functions:
-    // setlocale
-    // _create_locale
-    // _wctomb_l
-    // So the only option left is to use the Win32 API: WideCharToMultiByte.
-#else
-    // Initialize locale settings from LANG environment variable.
-    setlocale(LC_ALL, "");
-    char *codeset = nl_langinfo(CODESET);
-    if (strcmp(codeset, "UTF-8") != 0) {
-	    fprintf(stderr, "WARNING: Character encoding is not set to UTF-8: %s\n", codeset);
-    }
+#ifdef _WIN32
+    // Turn on wchar_t to UTF-8 translation for stdout (wprintf).
+    _setmode(_fileno(stdout), _O_U8TEXT); 
 #endif
 
 #ifdef DEBUG
-    printf("wint_t is %d bytes\n", (int) sizeof(wint_t));
+    wprintf(L"wint_t is %d bytes\n", (int) sizeof(wint_t));
+    wprintf(L"WINVER is %d\n", WINVER);
     printf("WINT_MAX is %u\n", WINT_MAX);
     printf("UINT_MAX is %u\n", UINT_MAX);
     printf("FOPEN_READ_MODE is %s\n", FOPEN_READ_MODE);
@@ -142,7 +116,7 @@ bool findNonAscii(FILE *f, char *name)
 		// sequence is %lc.
             	wprintf(L"%hs:%" PRIu32 ",%" PRIu32 ": char='%lc' code=%" PRINT_WINT_T 
     		" bytes=[%hs]\n",
-	    	name, lineNum, columnNum, c, c, wideCharToMultiByteHex(c));
+	    	name, lineNum, columnNum, c, c, bytesToHexString(wideCharToMultiByte(c)));
         }
         else if (c == L'\n') {
             lineNum++;
@@ -157,31 +131,49 @@ bool findNonAscii(FILE *f, char *name)
     return success;
 }
 
-char *bytesToHexString(char *c)
+char *bytesToHexString(char *bytes)
 {
     static char hexString[HEX_STR_SIZE];
-    hexString[0] = '\0';
-    char bytes[MB_CUR_MAX + 1];
-    int byteCount = wctomb(bytes, c);
+    int byteCount = strlen(bytes);
     if (byteCount > 0) {
-        uint8_t byteValue = (uint8_t) bytes[0];
-        snprintf(hexString, 6, "%" PRIx8, byteValue);
-        for (int i = 1; i < byteCount; i++) {
-            char charHexValue[6];
-            snprintf(charHexValue, 6, " %" PRIx8, (uint8_t) bytes[i]);
-	    strncat(hexString, charHexValue, 5);
-        }
+	    uint8_t byteValue = (uint8_t) bytes[0];
+	    char charHexValue[6];
+	    snprintf(charHexValue, 6, "%" PRIx8, byteValue);
+	    strncpy(hexString, charHexValue, 5);
+	    for (int i = 1; i < byteCount; i++) {
+		snprintf(charHexValue, 6, " %" PRIx8, (uint8_t) bytes[i]);
+		strncat(hexString, charHexValue, 5);
+	    }
     }
     return hexString;
 }
 
 char *wideCharToMultiByte(wchar_t c)
 {
-	static char multiByteChar[MB_CUR_MAX + 1];
+#define SIZE_OF_MB_CUR_MAX_STR 32
+	static char multiByteChar[SIZE_OF_MB_CUR_MAX_STR];
 #ifdef _WIN32
-	WideCharToMultiByte();
+	int byteCount = WideCharToMultiByte(
+		CP_UTF8,
+		WC_NO_BEST_FIT_CHARS,
+		&c,
+		1,
+		multiByteChar,
+		SIZE_OF_MB_CUR_MAX_STR,
+		NULL,
+		NULL
+		);
+	if (byteCount == 0) {
+		fprintf(stderr, "WideCharToMultiByte failed: %lu\n", GetLastError());
+		exit(EXIT_FAILURE);
+	}
 #else
 	int byteCount = wctomb(multiByteChar, c);
+	if (byteCount == -1) {
+		fprintf(stderr, "wctomb failed: %s\n", strerror(errno));
+		exit(EXIT_FAILURE);
+	}
+#endif
 	multiByteChar[byteCount] = '\0';
 	return multiByteChar;
 }
@@ -197,6 +189,7 @@ void checkLocale()
     printf("Encdng: %s\n", encName);
 #endif
 
+/*
     if (! isUTF8CharEncName(encName)) {
 	fprintf(stderr, "\nWARNING: Possible character encoding mismatch\n\n"
 		"To properly decode any non-ASCII characters stored in the input\n"
@@ -214,6 +207,33 @@ void checkLocale()
 		"	Linux/Mac: export LANG=en_US.UTF-8\n\n", encName);
 	fflush(stdout);
     }
+*/
+
+// The _WIN32 macro is set for both 32-bit and 64-bit Windows targets.
+// It is the accepted way to detect Windows.
+#ifdef _WIN32
+    // This may not be necessary. Need to validate.
+    if (GetConsoleOutputCP() != CP_UTF8) {
+    	fprintf(stderr, "Console code page is %d, which is not UTF-8. Resetting to UTF-8 (%d)\n", GetConsoleOutputCP(), CP_UTF8);
+    	SetConsoleOutputCP(CP_UTF8);
+    }
+    // The locale has to be set to UTF-8 for wctomb to generate UTF-8 chars on both Windows and Linux.
+    // Setting the code page does not set the locale.
+    // Windows considers it an error to try to set the locale to UTF-8, so we can't do that. Catch-22.
+    // Windows will not accept a UTF-8 parameter with these functions:
+    // setlocale
+    // _create_locale
+    // _wctomb_l
+    // So the only option left is to use the Win32 API: WideCharToMultiByte.
+#else
+    // Initialize locale settings from LANG environment variable.
+    setlocale(LC_ALL, "");
+    char *codeset = nl_langinfo(CODESET);
+    if (strcmp(codeset, "UTF-8") != 0) {
+	    fprintf(stderr, "WARNING: Character encoding is not set to UTF-8: %s\n", codeset);
+    }
+#endif
+
 }
 
 /**
