@@ -9,6 +9,7 @@
 #include <windows.h>	/* SetConsoleOutputCP, CP_UTF8 */
 #include <io.h>		/* _setmode */
 #include <fcntl.h>	/* _O_U8TEXT */
+#include "win32-error-text.h"
 #else
 #include <langinfo.h>	/* nl_langinfo */
 #endif
@@ -54,15 +55,18 @@ int main(int argc, char *argv[])
 {
 #ifdef _WIN32
     // Turn on wchar_t to UTF-8 translation for stdout (wprintf).
+    // This requires all output to be wide character. Printf will fail.
     _setmode(_fileno(stdout), _O_U8TEXT); 
 #endif
+
+	checkLocale();
 
 #ifdef DEBUG
     wprintf(L"wint_t is %d bytes\n", (int) sizeof(wint_t));
     wprintf(L"WINVER is %d\n", WINVER);
-    printf("WINT_MAX is %u\n", WINT_MAX);
-    printf("UINT_MAX is %u\n", UINT_MAX);
-    printf("FOPEN_READ_MODE is %s\n", FOPEN_READ_MODE);
+    wprintf(L"WINT_MAX is %u\n", WINT_MAX);
+    wprintf(L"UINT_MAX is %u\n", UINT_MAX);
+    wprintf(L"FOPEN_READ_MODE is %s\n", FOPEN_READ_MODE);
     fflush(stdout);
 #endif
 
@@ -87,7 +91,7 @@ int main(int argc, char *argv[])
 				exitCode = EXIT_FAILURE;
 			    }
 			    if (fclose(in) == EOF) {
-				fprintf(stderr, "%s: Failed to close file: %s\n", fileName, 
+				fwprintf(stderr, L"%S: Failed to close file: %S\n", fileName, 
 					strerror(errno));
 				exitCode = EXIT_FAILURE;
 			    }
@@ -96,7 +100,7 @@ int main(int argc, char *argv[])
 	    }
     }
     else {
-	    fprintf(stderr, "%s: Exiting because no input files were provided\n", basename(argv[0]));
+	    fwprintf(stderr, L"%S: Exiting because no input files were provided\n", basename(argv[0]));
     }
     return exitCode;
 }
@@ -124,7 +128,7 @@ bool findNonAscii(FILE *f, char *name)
         }
     }
     if (ferror(f)) {
-        fprintf(stderr, "%s: Read failed at line %" PRIu32 ": %s\n", name, lineNum, 
+        fwprintf(stderr, L"%S: Read failed at line %" PRIu32 ": %S\n", name, lineNum, 
 		strerror(errno));
 	success = false;
     }
@@ -155,7 +159,7 @@ char *wideCharToMultiByte(wchar_t c)
 #ifdef _WIN32
 	int byteCount = WideCharToMultiByte(
 		CP_UTF8,
-		WC_NO_BEST_FIT_CHARS,
+		0,
 		&c,
 		1,
 		multiByteChar,
@@ -164,7 +168,8 @@ char *wideCharToMultiByte(wchar_t c)
 		NULL
 		);
 	if (byteCount == 0) {
-		fprintf(stderr, "WideCharToMultiByte failed: %lu\n", GetLastError());
+		wchar_t *msg = getMessage(GetLastError());
+		fwprintf(stderr, L"WideCharToMultiByte failed: %s\n", msg);
 		exit(EXIT_FAILURE);
 	}
 #else
@@ -180,13 +185,13 @@ char *wideCharToMultiByte(wchar_t c)
 
 void checkLocale()
 {
+
+#ifdef DEBUG
     // Get the current locale
     char *locale = setlocale(LC_ALL, NULL);
     const char *encName = findCharEncNameInLocale(locale);
-
-#ifdef DEBUG
-    printf("Locale: %s\n", locale);
-    printf("Encdng: %s\n", encName);
+    wprintf(L"Locale: %S\n", locale);
+    wprintf(L"Encdng: %S\n", encName);
 #endif
 
 /*
@@ -214,7 +219,7 @@ void checkLocale()
 #ifdef _WIN32
     // This may not be necessary. Need to validate.
     if (GetConsoleOutputCP() != CP_UTF8) {
-    	fprintf(stderr, "Console code page is %d, which is not UTF-8. Resetting to UTF-8 (%d)\n", GetConsoleOutputCP(), CP_UTF8);
+    	fwprintf(stderr, L"Console code page is %d, which is not UTF-8. Resetting to UTF-8 (%d)\n", GetConsoleOutputCP(), CP_UTF8);
     	SetConsoleOutputCP(CP_UTF8);
     }
     // The locale has to be set to UTF-8 for wctomb to generate UTF-8 chars on both Windows and Linux.

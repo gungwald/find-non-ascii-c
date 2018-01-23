@@ -2,7 +2,7 @@
 
 CC=gcc
 TARGET=find-non-ascii
-OBJS=$(TARGET).o java-string-compat.o
+OBJS=$(TARGET).o java-string-compat.o win32-error-text.o
 INSTALL_DIR=$(USERPROFILE)/bin
 INSTALL=install
 
@@ -14,15 +14,17 @@ CFLAGS=-std=c11 -Wall -D_XOPEN_SOURCE=500
 ifdef RELEASE
 	CFLAGS+=-O2
 else	
-	CFLAGS+=-g
+	CFLAGS+=-g -DDEBUG
 endif
 
 $(TARGET).exe: $(OBJS)
 	$(LINK.o) $^ $(LOADLIBES) $(LDLIBS) -o $@
 
-$(TARGET).o: $(TARGET).c java-string-compat.h
+$(TARGET).o: $(TARGET).c java-string-compat.h win32-error-text.h
 
 java-string-compat.o: java-string-compat.c java-string-compat.h
+
+win32-error-text.o: win32-error-text.c win32-error-text.h
 
 install: $(TARGET).exe
 	$(INSTALL) -D $(TARGET).exe $(INSTALL_DIR)
