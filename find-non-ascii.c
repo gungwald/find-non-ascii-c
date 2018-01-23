@@ -217,11 +217,12 @@ void checkLocale()
 // The _WIN32 macro is set for both 32-bit and 64-bit Windows targets.
 // It is the accepted way to detect Windows.
 #ifdef _WIN32
-    // This may not be necessary. Need to validate.
-    if (GetConsoleOutputCP() != CP_UTF8) {
-    	fwprintf(stderr, L"Console code page is %d, which is not UTF-8. Resetting to UTF-8 (%d)\n", GetConsoleOutputCP(), CP_UTF8);
-    	SetConsoleOutputCP(CP_UTF8);
-    }
+    // This is not necessary as it only affects output from ASCII functions,
+    // not the wide character functions used in this program.
+    //if (GetConsoleOutputCP() != CP_UTF8) {
+    	//fwprintf(stderr, L"WARNING: Console code page is %d. Setting to %d for UTF-8 output.\n", GetConsoleOutputCP(), CP_UTF8);
+    	//SetConsoleOutputCP(CP_UTF8);
+    //}
     // The locale has to be set to UTF-8 for wctomb to generate UTF-8 chars on both Windows and Linux.
     // Setting the code page does not set the locale.
     // Windows considers it an error to try to set the locale to UTF-8, so we can't do that. Catch-22.
