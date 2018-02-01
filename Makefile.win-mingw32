@@ -1,4 +1,4 @@
-# For vim: set makeprg=gmake\ -f\ Makefile.Msys-gmake
+include Makefile.msys-mingw32
 
 # Work around .c vs .C case insensitivity with Windows and mingw
 # The .c file gets assigned to g++ because it matches with the makefile
@@ -6,5 +6,8 @@
 CXX=$(CC)
 CPPFLAGS=$(CFLAGS)
 
-include Makefile.Msys
+RM:=del
+INSTALL_DIR=$(USERPROFILE)\\bin
+INSTALL=copy
+
 

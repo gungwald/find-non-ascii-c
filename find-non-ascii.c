@@ -58,13 +58,14 @@ int main(int argc, char *argv[]) {
     _setmode(_fileno(stdout), _O_U8TEXT);
 #endif
 
-    checkLocale();
+    //checkLocale();
 
 #ifdef DEBUG
-    wprintf(L"wint_t is %d bytes\n", (int) sizeof(wint_t));
-    wprintf(L"WINVER is %d\n", WINVER);
-    wprintf(L"WINT_MAX is %u\n", WINT_MAX);
-    wprintf(L"UINT_MAX is %u\n", UINT_MAX);
+    wprintf(L"size_t is %lu bytes\n", sizeof(size_t));
+    wprintf(L"wint_t is %lu bytes\n", sizeof(wint_t));
+    wprintf(L"WINVER is %lu\n", WINVER);
+    wprintf(L"WINT_MAX is %lu\n", WINT_MAX);
+    wprintf(L"UINT_MAX is %lu\n", UINT_MAX);
     wprintf(L"FOPEN_READ_MODE is %s\n", FOPEN_READ_MODE);
     fflush(stdout);
 #endif

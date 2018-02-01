@@ -1,8 +1,7 @@
 #include <stdio.h>
 #include <tchar.h>
-#include <Windows.h>
-#include <LM.h>
 #include "win32-error-text.h"
+#include <lm.h>
 
 #define ERR_MSG_SIZE 256
 

@@ -1,4 +1,4 @@
-# For vim: set makeprg=mingw32-make\ -f\ Makefile.Msys
+# For vim: set makeprg=mingw32-make\ -f\ Makefile.msys-mingw32
 
 CC=gcc
 TARGET=find-non-ascii
